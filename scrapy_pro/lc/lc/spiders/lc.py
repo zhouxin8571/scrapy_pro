@@ -12,7 +12,7 @@ class Xiaowennuan(scrapy.Spider):
 
 
     def parse(self,response):
-        for link in range(2,5,1):
+        for link in range(2,72,1):
             dir_list = 'http://www.tstdoors.com/ldks/45641/index_' + str(link) +".html"
             print(dir_list)
             yield scrapy.Request(dir_list,callback=self.parse_two_html)
