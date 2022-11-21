@@ -1,0 +1,90 @@
+#创建项目
+scrapy startproject lc
+
+#spider解释
+    name = "lc"     #name关键字指定scrapy启动时的名字
+    allowed_doamins = ['www.tstdoors.com']   #允许spider 访问的域名
+    start_urls = ["http://www.tstdoors.com/ldks/45641/"]    #起始url
+
+
+    def parse(self,response):     #parse关键字，定义parse方法获取网页一级link
+        for link in range(2,72,1):
+            dir_list = 'http://www.tstdoors.com/ldks/45641/index_' + str(link) +".html"
+            print(dir_list)
+            yield scrapy.Request(dir_list,callback=self.parse_two_html)    #yield 关键字设置从一级获取的url 中获取二级link的方法途径
+
+    def parse_two_html(self, response):     #字义获取二级link的方法
+        bs = BeautifulSoup(response.text,"html.parser")
+        datas = bs.find_all('ul',class_='section-list fix')[1].find_all('li')     #从二级link中获取所有3级link的link
+        for data in datas:
+            ret = re.findall(r'(.*).html',data.find('a')['href'])
+            for i in range(1,3,1):
+                try:
+                    chapter_list = 'http://www.tstdoors.com'  +str(ret[0])   +'_' + str(i) +'.html'
+                    print(chapter_list)
+                    #list_url = re.findall(r'(.*).html', chapter_list)[0] + "_" + str(n) + ".html"
+                    yield scrapy.Request(chapter_list,callback=self.GetContent)   #yield 设置从三级link中获取网页内容的方法
+                except Exception as e:
+                    print('none')
+
+    def GetContent(self,response):    #定义获取3级网页内容的方法
+        item = LcItem()    #定义item 将获取内容的关键信息传递给item ，item本质上是键盘对的dic
+        bs2 = BeautifulSoup(response.text,"html.parser")
+        item['num'] = response.url.split('/')[-1].split('.')[0]
+        item['title'] =bs2.find('div',id='content').find('h1').text
+        item['content'] = bs2.find(id='content').text
+        yield  item    #遍历所有item
+
+
+ class LcItem(scrapy.Item):   #定义item 类,方便spider引用
+    # define the fields for your item here like:
+    # name = scrapy.Field()
+    num = scrapy.Field()   #定义存取关键字段
+    title = scrapy.Field()
+    content = scrapy.Field()
+    pass
+
+
+class LcPipeline:   #定义存储类由spider引擎将item中获取信息存储下来
+    def __init__(self):
+        self.content_list=[]  #定义存储list用于将所有item存储进来
+
+    def open_spider(self,spider):
+        self.file = open('lc.txt','w')  #定义存储名称为文本追加
+
+    def process_item(self, item, spider):
+        self.content_list.append(item)   #将spider中获取到的item 附加到list中
+        return item
+
+    def close_spider(self,spider):  #关闭spider方法
+        list_sorted = sorted(self.content_list,key=lambda x: x['num'])    #将list中的内容按照dic中的key 值 "num"排序
+        for item in list_sorted:
+            self.file.write('%s\n' % (item['title']))  #存取title
+            try:
+                self.file.write(''.join(item['content']).replace('\xa0','').replace('安卓、IOS版本请访问官网https://www.biqugeapp.co下载最新版本。如浏览器禁止访问，请换其他浏览器试试；如有异常请邮件反馈。','').replace('章节错误,点此举报(免注册),如遇到内容乱码错字顺序乱,请退出阅读模式或畅读模式即可正常。','')+'\n')
+            except Exception as e:  #存取内容
+                print(e)
+        self.file.close()   #关闭spider
+
+
+#基本setting
+BOT_NAME = 'lc'   #名字
+
+SPIDER_MODULES = ['lc.spiders']
+NEWSPIDER_MODULE = 'lc.spiders'
+
+
+# Crawl responsibly by identifying yourself (and your website) on the user-agent
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36'   #浏览器引擎
+
+# Obey robots.txt rules
+ROBOTSTXT_OBEY = False   #关闭网警
+
+
+DOWNLOAD_DELAY = 3   #设置下载并发数
+
+
+
+ITEM_PIPELINES = {   #设置存储引擎
+    'lc.pipelines.LcPipeline': 300,
+}
