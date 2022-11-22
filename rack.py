@@ -131,6 +131,18 @@ def AddRack():
     except Exception as e:
         db.rollback()
 
+def AddPhoto():
+    object_id = QuerryObjectId(name)[0][0]
+    print(object_id)
+    try:
+        #sql4 = "INSERT INTO RackSpace(rack_id,unit_no,atom,state,object_id) VALUES (%s,INET_ATON(%s),%s,%s,%s);"
+        entity_id = object_id
+        sql5 = "INSERT INTO FileLink (file_id,entity_type,entity_id) VALUES  (%s,%s,%s);"
+        cursor.execute(sql5, [file_id, 'object',entity_id])
+        db.commit()
+    except Exception as e:
+        db.rollback()
+
 if __name__ == "__main__":
     # 新增
     df = pd.read_excel('./rack.xlsx',sheet_name='Sheet1',header=0)
@@ -177,5 +189,12 @@ if __name__ == "__main__":
     #        AddRack()
     #cursor.close()
     #b.close()
+
+    for index,row in df.iterrows():
+        name = row['name']
+        file_id = row['file_id']
+        AddPhoto()
+    cursor.close()
+    db.close()
 
 
